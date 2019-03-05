@@ -198,7 +198,7 @@ def forward_train(self, actions):
         - Contains a_1, ..., a_T described above
     - self.prepare_for_train()
         - Initializes self.action_step to be 0, which will get
-          incremented by 1 everytime it is called.
+          incremented by 1 every time it is called.
         - Initializes objects recording log p(a_t|a_1,...a_{t-1})
 
     Returns
@@ -762,7 +762,7 @@ print('Among 100 graphs generated, {}% are valid.'.format(num_valid))
 
 #######################################################################################
 # For the complete implementation, see `dgl DGMG example
-# <https://github.com/jermainewang/dgl/tree/master/examples/pytorch/dgmg>`__.
+# <https://github.com/dmlc/dgl/tree/master/examples/pytorch/dgmg>`__.
 #
 # Batched Graph Generation
 # ---------------------------

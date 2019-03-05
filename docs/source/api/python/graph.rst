@@ -55,6 +55,8 @@ Transforming graph
     DGLGraph.subgraphs
     DGLGraph.edge_subgraph
     DGLGraph.line_graph
+    DGLGraph.reverse
+    DGLGraph.readonly
 
 Converting from/to other format
 -------------------------------
@@ -95,6 +97,7 @@ Computing with DGLGraph
     DGLGraph.register_apply_edge_func
     DGLGraph.apply_nodes
     DGLGraph.apply_edges
+    DGLGraph.group_apply_edges
     DGLGraph.send
     DGLGraph.recv
     DGLGraph.send_and_recv

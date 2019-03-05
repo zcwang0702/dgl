@@ -1,6 +1,9 @@
-# DGL
+# Deep Graph Library (DGL)
 [![Build Status](http://ci.dgl.ai:80/buildStatus/icon?job=DGL/master)](http://ci.dgl.ai:80/job/DGL/job/master/)
 [![GitHub license](https://dmlc.github.io/img/apache2.svg)](./LICENSE)
+
+[Documentation](https://docs.dgl.ai) | [DGL at a glance](https://docs.dgl.ai/tutorials/basics/1_first.html#sphx-glr-tutorials-basics-1-first-py) |
+[Model Tutorials](https://docs.dgl.ai/tutorials/models/index.html) | [Discussion Forum](https://discuss.dgl.ai)
 
 DGL is a Python package that interfaces between existing tensor libraries and data being expressed as
 graphs.
@@ -13,6 +16,7 @@ A summary of the model accuracy and training speed with the Pytorch backend (on 
 | Model | Reported <br> Accuracy | DGL <br> Accuracy | Author's training speed (epoch time) | DGL speed (epoch time) | Improvement |
 | ----- | ----------------- | ------------ | ------------------------------------ | ---------------------- | ----------- |
 | [GCN](https://arxiv.org/abs/1609.02907)   | 81.5% | 81.0% | [0.0051s (TF)](https://github.com/tkipf/gcn) | 0.0042s | 1.17x |
+| [SGC](https://arxiv.org/abs/1902.07153) | 81.0% | 81.9% | n/a | 0.0008s | n/a |
 | [TreeLSTM](http://arxiv.org/abs/1503.00075) | 51.0% | 51.72% | [14.02s (DyNet)](https://github.com/clab/dynet/tree/master/examples/treelstm) | 3.18s | 4.3x |
 | [R-GCN <br> (classification)](https://arxiv.org/abs/1703.06103) | 73.23% | 73.53% | [0.2853s (Theano)](https://github.com/tkipf/relational-gcn) | 0.0273s | 10.4x |
 | [R-GCN <br> (link prediction)](https://arxiv.org/abs/1703.06103) | 0.158 | 0.151 | [2.204s (TF)](https://github.com/MichSchli/RelationPrediction) | 0.633s | 3.5x |
@@ -37,7 +41,7 @@ DGL should work on
 
 DGL also requires Python 3.5 or later.  Python 2 support is coming.
 
-Right now, DGL works on [PyTorch](https://pytorch.org) 0.4.1+ and [MXNet](mxnet.apache.org) nightly
+Right now, DGL works on [PyTorch](https://pytorch.org) 0.4.1+ and [MXNet](https://mxnet.apache.org) nightly
 build.
 
 ## Installation
@@ -142,16 +146,24 @@ For the basics of coding with DGL, please see [DGL basics](https://docs.dgl.ai/t
 
 For more realistic, end-to-end examples, please see [model tutorials](https://docs.dgl.ai/tutorials/models/index.html).
 
+
+## New to Deep Learning?
+
+Check out the open source book [*Dive into Deep Learning*](http://en.diveintodeeplearning.org/).
+
+
 ## Contributing
 
-Please let us know if you encounter a bug or have any suggestions by [filing an issue](https://github.com/jermainewang/dgl/issues).
+Please let us know if you encounter a bug or have any suggestions by [filing an issue](https://github.com/dmlc/dgl/issues).
 
 We welcome all contributions from bug fixes to new features and extensions.
-We expect all contributions discussed in the issue tracker and going through PRs.  Please refer to the PR guide.
+We expect all contributions discussed in the issue tracker and going through PRs.  Please refer to our [contribution guide](https://docs.dgl.ai/contribute.html).
+
 
 ## The Team
 
-DGL is developed and maintained by [NYU, NYU Shanghai, AWS Shanghai AI Lab, and AWS MXNet Science Team](https://www.dgl.ai/about).
+DGL is developed and maintained by [NYU, NYU Shanghai, AWS Shanghai AI Lab, and AWS MXNet Science Team](https://www.dgl.ai/pages/about.html).
+
 
 ## License
 
