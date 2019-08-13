@@ -4,7 +4,6 @@ from __future__ import absolute_import
 from collections import namedtuple
 from collections.abc import MutableMapping
 
-import sys
 import numpy as np
 
 from . import backend as F
@@ -22,22 +21,19 @@ class Scheme(namedtuple('Scheme', ['shape', 'dtype'])):
     dtype : backend-specific type object
         The feature data type.
     """
-    # FIXME:
-    # Python 3.5.2 is unable to pickle torch dtypes; this is a workaround.
+    # Pickling torch dtypes could be problemetic; this is a workaround.
     # I also have to create data_type_dict and reverse_data_type_dict
     # attribute just for this bug.
     # I raised an issue in PyTorch bug tracker:
     # https://github.com/pytorch/pytorch/issues/14057
-    if sys.version_info.major == 3 and sys.version_info.minor == 5:
-        def __reduce__(self):
-            state = (self.shape, F.reverse_data_type_dict[self.dtype])
-            return self._reconstruct_scheme, state
+    def __reduce__(self):
+        state = (self.shape, F.reverse_data_type_dict[self.dtype])
+        return self._reconstruct_scheme, state
 
-
-        @classmethod
-        def _reconstruct_scheme(cls, shape, dtype_str):
-            dtype = F.data_type_dict[dtype_str]
-            return cls(shape, dtype)
+    @classmethod
+    def _reconstruct_scheme(cls, shape, dtype_str):
+        dtype = F.data_type_dict[dtype_str]
+        return cls(shape, dtype)
 
 def infer_scheme(tensor):
     """Infer column scheme from the given tensor data.
@@ -201,7 +197,9 @@ class Frame(MutableMapping):
             # Note that we always create a new column for the given data.
             # This avoids two frames accidentally sharing the same column.
             self._columns = {k : Column.create(v) for k, v in data.items()}
-            if len(self._columns) != 0:
+            if isinstance(data, (Frame, FrameRef)):
+                self._num_rows = data.num_rows
+            elif len(self._columns) != 0:
                 self._num_rows = len(next(iter(self._columns.values())))
             else:
                 self._num_rows = 0
@@ -214,6 +212,7 @@ class Frame(MutableMapping):
         # If is none, then a warning will be raised
         # in the first call and zero initializer will be used later.
         self._initializers = {}  # per-column initializers
+        self._remote_init_builder = None
         self._default_initializer = None
 
     def _warn_and_set_initializer(self):
@@ -254,6 +253,35 @@ class Frame(MutableMapping):
             self._default_initializer = initializer
         else:
             self._initializers[column] = initializer
+
+    def set_remote_init_builder(self, builder):
+        """Set an initializer builder to create a remote initializer for a new column to a frame.
+
+        The builder is a callable that returns an initializer. The returned initializer
+        is also a callable that returns a tensor given a local tensor and tensor name.
+
+        Parameters
+        ----------
+        builder : callable
+            The builder to construct a remote initializer.
+        """
+        self._remote_init_builder = builder
+
+    def get_remote_initializer(self, name):
+        """Get a remote initializer.
+
+        Parameters
+        ----------
+        name : string
+            The column name.
+        """
+        if self._remote_init_builder is None:
+            return None
+
+        if self.get_initializer(name) is None:
+            self._warn_and_set_initializer()
+        initializer = self.get_initializer(name)
+        return self._remote_init_builder(initializer, name)
 
     @property
     def schemes(self):
@@ -328,11 +356,18 @@ class Frame(MutableMapping):
         if name in self:
             dgl_warning('Column "%s" already exists. Ignore adding this column again.' % name)
             return
-        if self.get_initializer(name) is None:
-            self._warn_and_set_initializer()
-        initializer = self.get_initializer(name)
-        init_data = initializer((self.num_rows,) + scheme.shape, scheme.dtype,
-                                ctx, slice(0, self.num_rows))
+
+        # If the data is backed by a remote server, we need to move data
+        # to the remote server.
+        initializer = self.get_remote_initializer(name)
+        if initializer is not None:
+            init_data = initializer((self.num_rows,) + scheme.shape, scheme.dtype, ctx)
+        else:
+            if self.get_initializer(name) is None:
+                self._warn_and_set_initializer()
+            initializer = self.get_initializer(name)
+            init_data = initializer((self.num_rows,) + scheme.shape, scheme.dtype,
+                                    ctx, slice(0, self.num_rows))
         self._columns[name] = Column(init_data, scheme)
 
     def add_rows(self, num_rows):
@@ -369,6 +404,13 @@ class Frame(MutableMapping):
         data : Column or data convertible to Column
             The column data.
         """
+        # If the data is backed by a remote server, we need to move data
+        # to the remote server.
+        initializer = self.get_remote_initializer(name)
+        if initializer is not None:
+            new_data = initializer(F.shape(data), F.dtype(data), F.context(data))
+            new_data[:] = data
+            data = new_data
         col = Column.create(data)
         if len(col) != self.num_rows:
             raise DGLError('Expected data to have %d rows, got %d.' %
@@ -376,6 +418,8 @@ class Frame(MutableMapping):
         self._columns[name] = col
 
     def _append(self, other):
+        assert self._remote_init_builder is None, \
+                "We don't support append if data in the frame is mapped from a remote server."
         # NOTE: `other` can be empty.
         if self.num_rows == 0:
             # if no rows in current frame; append is equivalent to
@@ -492,6 +536,19 @@ class FrameRef(MutableMapping):
             The column name
         """
         self._frame.set_initializer(initializer, column=column)
+
+    def set_remote_init_builder(self, builder):
+        """Set an initializer builder to create a remote initializer for a new column to a frame.
+
+        The builder is a callable that returns an initializer. The returned initializer
+        is also a callable that returns a tensor given a local tensor and tensor name.
+
+        Parameters
+        ----------
+        builder : callable
+            The builder to construct a remote initializer.
+        """
+        self._frame.set_remote_init_builder(builder)
 
     def get_initializer(self, column=None):
         """Get the initializer for empty values for the given column.
@@ -668,11 +725,10 @@ class FrameRef(MutableMapping):
             True if the update is performed inplacely.
         """
         if self.is_span_whole_column():
-            col = Column.create(data)
             if self.num_columns == 0:
                 # the frame is empty
-                self._index = utils.toindex(slice(0, len(col)))
-            self._frame[name] = col
+                self._index = utils.toindex(slice(0, len(data)))
+            self._frame[name] = data
         else:
             if name not in self._frame:
                 ctx = F.context(data)
